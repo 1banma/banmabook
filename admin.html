@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>斑马书库 - 管理后台</title>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;background:#f0f0f0;color:#1a1a1a;min-height:100vh}
+a{color:inherit;text-decoration:none}
+
+/* 顶栏 */
+.hd{background:#4A6741;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.hd h1{font-size:17px;font-weight:700}
+.hd-right{display:flex;align-items:center;gap:12px}
+.hd-badge{font-size:11px;background:rgba(255,255,255,.2);padding:3px 10px;border-radius:10px}
+
+/* 区域切换 */
+.sections{display:flex;gap:0;background:#fff;border-bottom:2px solid #e0e0e0}
+.sec-btn{flex:1;padding:14px;font-size:15px;font-weight:600;color:#888;background:none;border:none;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.sec-btn:hover{color:#333;background:#f9f9f9}
+.sec-btn.on{color:#4A6741;border-bottom:2px solid #4A6741;margin-bottom:-2px}
+.sec-badge{font-size:11px;background:#e8f5e3;color:#4A6741;padding:2px 8px;border-radius:10px}
+
+/* 标签 */
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e0e0e0;padding:0 24px;position:sticky;top:48px;z-index:9}
+.tab{padding:13px 20px;font-size:14px;font-weight:500;color:#888;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:6px}
+.tab:hover{color:#333}
+.tab.active{color:#4A6741;border-bottom-color:#4A6741}
+.badge{font-size:11px;background:#e8e8e8;color:#666;padding:1px 7px;border-radius:10px;font-weight:600}
+.tab.active .badge{background:#e8f5e3;color:#4A6741}
+
+/* 内容 */
+.main{max-width:760px;margin:20px auto;padding:0 16px}
+.hide{display:none!important}
+
+/* 卡片 */
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card-title{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+
+/* 表单 */
+.fr{display:flex;gap:10px;margin-bottom:10px;align-items:center}
+.fr label{width:52px;font-size:13px;color:#666;flex-shrink:0}
+.fr input,.fr select{flex:1;padding:9px 12px;font-size:13px;border:1.5px solid #ddd;border-radius:7px;outline:none;background:#fff}
+.fr input:focus{border-color:#4A6741}
+
+/* 按钮 */
+.btn{padding:8px 18px;font-size:13px;font-weight:500;border:none;border-radius:7px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-p{background:#4A6741;color:#fff}.btn-p:hover{opacity:.9}
+.btn-d{background:#fff;color:#e53e3e;border:1.5px solid #fed7d7}.btn-d:hover{background:#fff5f5}
+.btn-o{background:#fff;color:#666;border:1.5px solid #ddd}.btn-o:hover{border-color:#bbb}
+.btn-s{padding:5px 12px;font-size:12px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* 类型按钮 */
+.types{display:flex;gap:6px;flex-wrap:wrap}
+.tbtn{padding:6px 16px;font-size:12px;font-weight:500;border:1.5px solid #ddd;border-radius:6px;background:#fff;color:#666;cursor:pointer}
+.tbtn:hover{border-color:#bbb}
+.tbtn.on{color:#fff;border-color:transparent}
+
+/* 统计 */
+.stats{display:flex;gap:14px;padding:12px 16px;background:#f0f7ed;border-radius:8px;margin-bottom:14px;flex-wrap:wrap}
+.st{font-size:12px;color:#666}.st b{color:#333}
+
+/* 列表 */
+.lst{display:flex;flex-direction:column;gap:5px}
+.li{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f9f9f9;border-radius:8px;font-size:13px}
+.li:hover{background:#f0f0f0}
+.li-idx{width:22px;height:22px;background:#e8e8e8;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#888;flex-shrink:0}
+.li-info{flex:1;min-width:0}
+.li-title{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li-meta{font-size:11px;color:#999;margin-top:2px}
+.li-key{font-family:'Courier New',monospace;font-weight:600;letter-spacing:.05em;flex:1}
+.li-type{font-size:11px;color:#fff;padding:2px 8px;border-radius:4px;font-weight:500;flex-shrink:0}
+.li-status{font-size:12px;font-weight:500;width:60px;text-align:center;flex-shrink:0}
+.li-time{font-size:11px;color:#999;width:70px;text-align:right;flex-shrink:0}
+.empty{text-align:center;padding:28px;font-size:13px;color:#999}
+
+/* 导出 */
+.export-box{width:100%;padding:14px;font-size:13px;font-family:'Courier New',monospace;border:1.5px solid #ddd;border-radius:8px;background:#f9f9f9;resize:vertical;outline:none;line-height:1.6;min-height:160px}
+
+/* 密码 */
+.pwd-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100}
+.pwd-box{background:#fff;border-radius:14px;padding:32px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.pwd-box h2{font-size:18px;margin-bottom:8px}
+.pwd-box p{font-size:13px;color:#888;margin-bottom:20px}
+.pwd-box input{width:100%;padding:11px 14px;font-size:14px;border:1.5px solid #ddd;border-radius:8px;outline:none;margin-bottom:12px;text-align:center}
+.pwd-box input:focus{border-color:#4A6741}
+.pwd-box .btn{width:100%}
+.pwd-err{color:#e53e3e;font-size:13px;margin-bottom:10px}
+
+/* toast */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+
+@media(max-width:600px){
+  .main{padding:0 8px}
+  .card{padding:14px}
+  .fr{flex-wrap:wrap}
+  .fr label{width:auto}
+  .li{flex-wrap:wrap;gap:6px}
+  .li-key{width:100%}
+  .li-time{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- 密码 -->
+<div class="pwd-overlay" id="pwdScreen">
+  <div class="pwd-box">
+    <h2>🔐 管理后台</h2>
+    <p>请输入管理密码</p>
+    <input type="password" id="pwdInput" placeholder="管理密码" autofocus>
+    <div class="pwd-err hide" id="pwdErr">密码错误</div>
+    <button class="btn btn-p" onclick="doLogin()">登录</button>
+  </div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 主界面 -->
+<div id="mainUI" class="hide">
+  <div class="hd">
+    <h1>🦓 斑马书库 · 管理后台</h1>
+    <div class="hd-right">
+      <span class="hd-badge" id="todayDate"></span>
+      <button class="btn btn-s" style="background:rgba(255,255,255,.2);color:#fff;border:none" onclick="doLogout()">退出</button>
+    </div>
+  </div>
+
+  <div class="sections">
+    <button class="sec-btn on" onclick="switchSection('novel',this)">📚 小说后台</button>
+    <button class="sec-btn" onclick="switchSection('video',this)">🎬 视频后台</button>
+  </div>
+
+  <div class="tabs" id="novelTabs">
+    <button class="tab active" onclick="switchTab('novel-overview',this)">概览</button>
+    <button class="tab" onclick="switchTab('novel-settings',this)">设置</button>
+  </div>
+
+  <div class="tabs hide" id="videoTabs">
+    <button class="tab active" onclick="switchTab('videos',this)">视频管理 <span class="badge" id="vCount">0</span></button>
+    <button class="tab" onclick="switchTab('cards',this)">卡密管理 <span class="badge" id="cCount">0</span></button>
+    <button class="tab" onclick="switchTab('export',this)">导出</button>
+  </div>
+
+  <div class="main">
+    <!-- === 小说后台 === -->
+    <div id="secNovel">
+      <div id="pNovelOverview" class="panel">
+        <div class="card">
+          <div class="card-title"><span>📚 小说板块概览</span></div>
+          <div class="stats" style="flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between;width:100%">
+              <span class="st">总书籍数</span><b id="novelTotalBooks">-</b>
+            </div>
+            <div style="display:flex;justify-content:space-between;width:100%">
+              <span class="st">分类数</span><b id="novelTotalCats">-</b>
+            </div>
+            <div style="display:flex;justify-content:space-between;width:100%">
+              <span class="st">网站状态</span><b style="color:#38a169">✅ 正常运行</b>
+            </div>
+            <div style="display:flex;justify-content:space-between;width:100%">
+              <span class="st">部署平台</span><b>GitHub Pages</b>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span>快捷操作</span></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a href="/banmabook/" target="_blank" class="btn btn-o">🌐 打开网站</a>
+            <a href="/banmabook/#admin" target="_blank" class="btn btn-o">📝 书籍数据</a>
+          </div>
+        </div>
+      </div>
+      <div id="pNovelSettings" class="panel hide">
+        <div class="card">
+          <div class="card-title"><span>网站设置</span></div>
+          <div class="fr">
+            <label>站名</label>
+            <input value="斑马书库" readonly>
+          </div>
+          <div class="fr">
+            <label>副标题</label>
+            <input value="你的专属资源库" readonly>
+          </div>
+          <p style="font-size:12px;color:#999;margin-top:10px;line-height:1.6">书籍数据在 src/data/books.js 中维护，修改后需重新构建部署。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- === 视频后台 === -->
+    <div id="secVideo" class="hide">
+    <!-- 视频管理 -->
+    <div id="pVideos" class="panel">
+      <div class="card">
+        <div class="card-title">
+          <span>添加视频</span>
+        </div>
+        <div class="fr">
+          <label>BV号</label>
+          <input id="addBvid" placeholder="如 BV1GJ411x7h7">
+        </div>
+        <div class="fr">
+          <label>标题</label>
+          <input id="addTitle" placeholder="视频标题">
+        </div>
+        <div class="fr">
+          <label>封面</label>
+          <input id="addCover" placeholder="封面路径（可留空用默认）">
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn btn-p" onclick="addVideo()">添加视频</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <span>视频列表</span>
+          <span style="font-size:12px;color:#888" id="vInfo">共 0 个</span>
+        </div>
+        <div class="lst" id="videoList"></div>
+      </div>
+    </div>
+
+    <!-- 卡密管理 -->
+    <div id="pCards" class="panel hide">
+      <div class="card">
+        <div class="card-title"><span>生成卡密</span></div>
+        <div class="fr">
+          <label>类型</label>
+          <div class="types" id="typeBtns">
+            <button class="tbtn on" data-type="daily" style="background:#e53e3e;color:#fff;border-color:transparent" onclick="pickType(this)">日卡</button>
+            <button class="tbtn" data-type="weekly" onclick="pickType(this)">周卡</button>
+            <button class="tbtn" data-type="monthly" onclick="pickType(this)">月卡</button>
+            <button class="tbtn" data-type="permanent" onclick="pickType(this)">永久卡</button>
+          </div>
+        </div>
+        <div class="fr">
+          <label>数量</label>
+          <input id="genCount" type="number" value="10" min="1" max="100" style="width:80px;flex:none">
+          <button class="btn btn-p" onclick="genCards()">生成</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>卡密列表</span></div>
+        <div class="stats" id="cardStats"></div>
+        <div style="margin-bottom:10px">
+          <button class="btn btn-o btn-s" onclick="clearExpired()">清除已过期</button>
+        </div>
+        <div class="lst" id="cardList"></div>
+      </div>
+    </div>
+
+    <!-- 导出 -->
+    <div id="pExport" class="panel hide">
+      <div class="card">
+        <div class="card-title"><span>一键打包</span></div>
+        <p style="font-size:13px;color:#888;margin-bottom:14px;line-height:1.6">
+          一键生成 ZIP 压缩包（含提取码文本），直接上传到网盘即可。
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-p" onclick="downloadZip()">📦 一键下载 ZIP</button>
+          <button class="btn btn-o" onclick="doExport()">查看文本</button>
+        </div>
+        <textarea class="export-box hide" id="exportText" readonly style="margin-top:14px" placeholder=""></textarea>
+        <div style="margin-top:10px" class="hide" id="copyWrap">
+          <button class="btn btn-o btn-s" onclick="copyExport()">复制文本</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>导出数据文件</span></div>
+        <p style="font-size:13px;color:#888;margin-bottom:14px;line-height:1.6">
+          导出 videos.json 和 cards.json，用于更新网站数据。
+        </p>
+        <button class="btn btn-o" onclick="exportJSON()">导出 JSON 文件</button>
+      </div>
+    </div>
+    </div><!-- /secVideo -->
+  </div>
+</div>
+
+<script>
+const PWD = 'banma2026'
+const TC = { daily:'#e53e3e', weekly:'#dd6b20', monthly:'#3182ce', permanent:'#38a169' }
+const TL = { daily:'日卡', weekly:'周卡', monthly:'月卡', permanent:'永久卡' }
+let curType = 'daily'
+
+function ld(k, fb) { try { return JSON.parse(localStorage.getItem(k)) || fb } catch { return fb } }
+function sv(k, v) { localStorage.setItem(k, JSON.stringify(v)) }
+
+// === 密码 ===
+function doLogin() {
+  const p = document.getElementById('pwdInput').value
+  if (p === PWD) {
+    sessionStorage.setItem('bm_auth', '1')
+    showMain()
+  } else {
+    document.getElementById('pwdErr').classList.remove('hide')
+  }
+}
+function doLogout() {
+  sessionStorage.removeItem('bm-auth')
+  location.reload()
+}
+document.getElementById('pwdInput').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
+
+function showMain() {
+  document.getElementById('pwdScreen').classList.add('hide')
+  document.getElementById('mainUI').classList.remove('hide')
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('zh-CN')
+  renderVideos()
+  renderCards()
+  loadNovelStats()
+}
+
+// 检查登录
+if (sessionStorage.getItem('bm-auth') === '1') showMain()
+
+// === 区域切换 ===
+function switchSection(name, el) {
+  document.querySelectorAll('.sec-btn').forEach(b => b.classList.remove('on'))
+  el.classList.add('on')
+  if (name === 'novel') {
+    document.getElementById('novelTabs').classList.remove('hide')
+    document.getElementById('videoTabs').classList.add('hide')
+    document.getElementById('secNovel').classList.remove('hide')
+    document.getElementById('secVideo').classList.add('hide')
+    // 显示小说概览，隐藏其他
+    document.getElementById('pNovelOverview').classList.remove('hide')
+    document.getElementById('pNovelSettings').classList.add('hide')
+    // 重置小说标签
+    document.querySelectorAll('#novelTabs .tab').forEach((t,i) => t.classList.toggle('active', i===0))
+  } else {
+    document.getElementById('novelTabs').classList.add('hide')
+    document.getElementById('videoTabs').classList.remove('hide')
+    document.getElementById('secNovel').classList.add('hide')
+    document.getElementById('secVideo').classList.remove('hide')
+    // 显示视频管理，隐藏其他
+    document.getElementById('pVideos').classList.remove('hide')
+    document.getElementById('pCards').classList.add('hide')
+    document.getElementById('pExport').classList.add('hide')
+    // 重置视频标签
+    document.querySelectorAll('#videoTabs .tab').forEach((t,i) => t.classList.toggle('active', i===0))
+  }
+}
+
+// === 小说统计 ===
+function loadNovelStats() {
+  fetch('/banmabook/src/data/books.js')
+    .then(() => {
+      // 尝试从 localStorage 获取书籍数据（如果网站已加载）
+      const booksData = ld('_books_cache', null)
+      if (booksData) {
+        document.getElementById('novelTotalBooks').textContent = booksData.length
+        const cats = new Set(booksData.map(b => b.category))
+        document.getElementById('novelTotalCats').textContent = cats.size
+      } else {
+        document.getElementById('novelTotalBooks').textContent = '7000+'
+        document.getElementById('novelTotalCats').textContent = '13'
+      }
+    })
+    .catch(() => {
+      document.getElementById('novelTotalBooks').textContent = '7000+'
+      document.getElementById('novelTotalCats').textContent = '13'
+    })
+}
+
+// === 标签切换 ===
+function switchTab(name, el) {
+  const parent = el.closest('.tabs')
+  parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  el.classList.add('active')
+  // 隐藏所有面板
+  document.querySelectorAll('.panel').forEach(p => p.classList.add('hide'))
+  // 显示对应面板
+  const map = {
+    'novel-overview': 'pNovelOverview',
+    'novel-settings': 'pNovelSettings',
+    'videos': 'pVideos',
+    'cards': 'pCards',
+    'export': 'pExport'
+  }
+  if (map[name]) document.getElementById(map[name]).classList.remove('hide')
+}
+
+// === toast ===
+function toast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 1500)
+}
+
+// === 视频管理 ===
+function renderVideos() {
+  const vs = ld('bm_videos', [])
+  document.getElementById('vCount').textContent = vs.length
+  document.getElementById('vInfo').textContent = `共 ${vs.length} 个`
+  const el = document.getElementById('videoList')
+  if (!vs.length) { el.innerHTML = '<div class="empty">暂无视频，上方添加</div>'; return }
+  el.innerHTML = vs.map((v, i) => `
+    <div class="li">
+      <div class="li-idx">${i+1}</div>
+      <div class="li-info"><div class="li-title">${esc(v.title)}</div><div class="li-meta">${esc(v.bvid)}</div></div>
+      <button class="btn btn-d btn-s" onclick="delVideo('${v.id}')">删除</button>
+    </div>
+  `).join('')
+}
+
+function addVideo() {
+  const bvid = document.getElementById('addBvid').value.trim()
+  const title = document.getElementById('addTitle').value.trim()
+  const cover = document.getElementById('addCover').value.trim()
+  if (!bvid || !title) return toast('请填写BV号和标题')
+  const vs = ld('bm_videos', [])
+  vs.push({ id: 'v' + Date.now(), bvid, title, cover: cover || 'video-covers/cover1.jpg' })
+  sv('bm_videos', vs)
+  document.getElementById('addBvid').value = ''
+  document.getElementById('addTitle').value = ''
+  document.getElementById('addCover').value = ''
+  renderVideos()
+  toast('视频已添加')
+}
+
+function delVideo(id) {
+  if (!confirm('确定删除？')) return
+  const vs = ld('bm_videos', []).filter(v => v.id !== id)
+  sv('bm_videos', vs)
+  renderVideos()
+  toast('已删除')
+}
+
+// === 卡密管理 ===
+function genKey() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let k = ''
+  for (let i = 0; i < 8; i++) { if (i === 4) k += '-'; k += c[Math.floor(Math.random() * c.length)] }
+  return k
+}
+
+function pickType(el) {
+  document.querySelectorAll('.tbtn').forEach(b => { b.classList.remove('on'); b.style.background = '#fff'; b.style.color = '#666'; b.style.borderColor = '#ddd' })
+  el.classList.add('on')
+  el.style.background = TC[el.dataset.type]
+  el.style.color = '#fff'
+  el.style.borderColor = 'transparent'
+  curType = el.dataset.type
+}
+
+function genCards() {
+  const n = Math.min(100, Math.max(1, parseInt(document.getElementById('genCount').value) || 1))
+  const durs = { daily: 24, weekly: 168, monthly: 720, permanent: 0 }
+  const now = Date.now()
+  const cs = ld('bm_cards', [])
+  for (let i = 0; i < n; i++) {
+    const h = durs[curType]
+    cs.unshift({ id: 'k' + now + '_' + i + '_' + Math.random().toString(36).slice(2,6), key: genKey(), type: curType, createdAt: now, expiresAt: h > 0 ? now + h * 36e5 : null, activated: false })
+  }
+  sv('bm_cards', cs)
+  renderCards()
+  toast(`已生成 ${n} 个${TL[curType]}`)
+}
+
+function getStatus(c) {
+  if (!c.activated) return { t: '未使用', c: '#718096' }
+  if (!c.expiresAt) return { t: '永久', c: '#38a169' }
+  if (c.expiresAt < Date.now()) return { t: '已过期', c: '#e53e3e' }
+  const h = Math.ceil((c.expiresAt - Date.now()) / 36e5)
+  return h >= 24 ? { t: `剩${Math.floor(h/24)}天`, c: '#3182ce' } : { t: `剩${h}时`, c: '#dd6b20' }
+}
+
+function renderCards() {
+  const cs = ld('bm_cards', [])
+  document.getElementById('cCount').textContent = cs.length
+  const unused = cs.filter(c => !c.activated).length
+  const active = cs.filter(c => c.activated && (c.expiresAt === null || c.expiresAt > Date.now())).length
+  const expired = cs.filter(c => c.activated && c.expiresAt && c.expiresAt < Date.now()).length
+  document.getElementById('cardStats').innerHTML = `
+    <span class="st">未使用 <b>${unused}</b></span>
+    <span class="st">激活中 <b>${active}</b></span>
+    <span class="st">已过期 <b>${expired}</b></span>
+  `
+  const el = document.getElementById('cardList')
+  if (!cs.length) { el.innerHTML = '<div class="empty">暂无卡密，选择类型后点生成</div>'; return }
+  el.innerHTML = cs.map(c => {
+    const s = getStatus(c)
+    const d = new Date(c.createdAt)
+    return `<div class="li">
+      <span class="li-key">${c.key}</span>
+      <span class="li-type" style="background:${TC[c.type]}">${TL[c.type]}</span>
+      <span class="li-status" style="color:${s.c}">${s.t}</span>
+      <span class="li-time">${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</span>
+      <button class="btn btn-s btn-o" onclick="copyKey('${c.key}')" title="复制">📋</button>
+      <button class="btn btn-s btn-d" onclick="delCard('${c.id}')" title="删除">✕</button>
+    </div>`
+  }).join('')
+}
+
+function copyKey(k) { navigator.clipboard.writeText(k); toast('已复制 ' + k) }
+function delCard(id) { sv('bm_cards', ld('bm_cards', []).filter(c => c.id !== id)); renderCards(); toast('已删除') }
+function clearExpired() {
+  const now = Date.now()
+  sv('bm_cards', ld('bm_cards', []).filter(c => !c.activated || !c.expiresAt || c.expiresAt > now))
+  renderCards(); toast('已清除过期卡密')
+}
+
+// === 导出 ===
+function getExportText() {
+  const cs = ld('bm_cards', []).filter(c => !c.activated || (c.expiresAt && c.expiresAt > Date.now()) || c.expiresAt === null)
+  if (!cs.length) return null
+  const lines = cs.map(c => c.key + '  (' + TL[c.type] + ')')
+  return `=== 斑马书库视频提取码 ===\n日期：${new Date().toLocaleDateString('zh-CN')}\n\n${lines.join('\n')}\n\n========================\n网站：https://1banma.github.io/banmabook/\n提示：输入提取码即可观看视频`
+}
+
+function doExport() {
+  const text = getExportText()
+  if (!text) { toast('没有可导出的卡密'); return }
+  const el = document.getElementById('exportText')
+  el.value = text
+  el.classList.remove('hide')
+  document.getElementById('copyWrap').classList.remove('hide')
+}
+
+function copyExport() {
+  const t = document.getElementById('exportText').value
+  if (!t) return toast('先生成再复制')
+  navigator.clipboard.writeText(t); toast('已复制到剪贴板')
+}
+
+async function downloadZip() {
+  const text = getExportText()
+  if (!text) { toast('没有可导出的卡密'); return }
+  const zip = new JSZip()
+  const dateStr = new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')
+  zip.file('视频提取码.txt', text)
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `斑马书库视频码_${dateStr}.zip`
+  a.click()
+  URL.revokeObjectURL(a.href)
+  toast('ZIP 已下载，直接上传网盘即可')
+}
+
+function exportJSON() {
+  const vs = ld('bm_videos', [])
+  const cs = ld('bm_cards', [])
+  // 下载 videos.json
+  downloadJSON(vs, 'videos.json')
+  setTimeout(() => downloadJSON(cs, 'cards.json'), 500)
+  toast('JSON 文件已下载')
+}
+
+function downloadJSON(data, name) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML }
+</script>
+</body>
+</html>
